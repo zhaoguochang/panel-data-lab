@@ -40,7 +40,7 @@
       defaults: { n: 200, T: 8, reps: 500, beta: 1, rhoX: 0.9, sigmaV: 1, rhoE: 0.8, sigmaE: 1, seed: 42 },
       fields: [
         { key: 'n', label: 'Individuals n', min: 20, max: 1000, step: 10 },
-        { key: 'T', label: 'Periods T', min: 4, max: 30, step: 1 },
+        { key: 'T', label: 'Periods T', min: 2, max: 30, step: 1 },
         { key: 'beta', label: 'True β', min: 0, max: 2, step: 0.1 },
         { key: 'rhoX', label: 'Persistence ρ<sub>x</sub> of x*', min: 0, max: 0.98, step: 0.05 },
         { key: 'sigmaV', label: 'Measurement error σ<sub>v</sub>', min: 0, max: 3, step: 0.1 },
@@ -52,6 +52,7 @@
       presets: [
         { label: 'Attenuation, iid η (β = 1, ρ<sub>η</sub> = 0)', values: { beta: 1, rhoE: 0, n: 200, T: 8 } },
         { label: 'Test size (β = 0, ρ<sub>η</sub> = 0.8)', values: { beta: 0, rhoE: 0.8, n: 100, T: 10 } },
+        { label: 'Two periods, T = 2 (FE = FD)', values: { beta: 1, rhoE: 0, sigmaV: 1, n: 200, T: 2 } },
         { label: 'No measurement error (σ<sub>v</sub> = 0)', values: { beta: 1, sigmaV: 0, rhoE: 0 } }
       ]
     },
@@ -276,9 +277,11 @@
       ]);
     } else if (state.active === 'fefd') {
       var p0 = params(), showSize = Math.abs(p0.beta) < 1e-9, mcSd = s.fe.sd;
-      setText('resultSubtitle', showSize
+      var sub = showSize
         ? 'β = 0, so the rejection rate is the test size; critical value |t| > 1.96. With no signal in x, measurement error cannot bias β̂.'
-        : 'True β = ' + fmt(p0.beta, 2) + '; observed x contains measurement error and η is AR(1). Rejection rates appear only at β = 0, where they measure test size.');
+        : 'True β = ' + fmt(p0.beta, 2) + '; observed x contains measurement error and η is AR(1). Rejection rates appear only at β = 0, where they measure test size.';
+      if (p0.T === 2) sub += ' At T = 2 there is one within observation per unit, so FE and FD are the same estimator.';
+      setText('resultSubtitle', sub);
       html = '<div class="table-title">Slope estimates</div>' +
         tableHTML(common, [
           statRow('FE (within)', s.fe, r.meta.truth),
@@ -455,19 +458,53 @@
     } else {
       var feAtt = s.fe.mean, fdAtt = s.fd.mean, beta0 = r.meta.truth;
       var mcSd = s.fe.sd, ratioC = s.seConv.mean / mcSd, ratioCl = s.seCl.mean / mcSd;
+      var twoT = params().T === 2, maxGap = 0;
+      for (var gi = 0; gi < r.arrays.fe.length; gi++) {
+        maxGap = Math.max(maxGap, Math.abs(r.arrays.fe[gi] - r.arrays.fd[gi]));
+      }
       if (Math.abs(beta0) < 1e-9) {
-        html = '<p>With β = 0 both slopes center on zero: FE <span class="key">' + fmt(feAtt) + '</span>, FD <span class="key">' + fmt(fdAtt) +
-          '</span>. Measurement error cannot attenuate a zero effect, so the point estimates look fine.</p>' +
-          '<p>Inference is where it breaks. Conventional FE SE averages <span class="key">' + fmt(s.seConv.mean) +
-          '</span> against an actual spread of <span class="key">' + fmt(mcSd) + '</span> (ratio ' + fmt(ratioC, 2) +
-          '), while the clustered SE averages ' + fmt(s.seCl.mean) + ' (ratio ' + fmt(ratioCl, 2) +
-          '). Ignoring the AR(1) dependence in η<sub>it</sub> makes the test over-reject: <span class="key">' + pct(s.rejectConv) +
-          '</span> versus ' + pct(s.rejectCl) + ' at the 5% level.</p>';
+        if (twoT) {
+          html = '<p>With β = 0 both slopes center on zero: FE <span class="key">' + fmt(feAtt) + '</span>, FD <span class="key">' + fmt(fdAtt) +
+            '</span>. At T = 2 the two estimators coincide exactly (largest gap across replications: ' + maxGap.toExponential(1) + '), ' +
+            'because the within transformation has only one degree of freedom per unit.</p>' +
+            '<p>With a single difference per unit there is no within-unit serial correlation left for clustering to fix, so the conventional SE (' +
+            fmt(s.seConv.mean) + ') and the clustered SE (' + fmt(s.seCl.mean) + ') nearly coincide, and both sit close to the actual spread of ' +
+            fmt(mcSd) + '. Rejection rates: <span class="key">' + pct(s.rejectConv) + '</span> versus ' + pct(s.rejectCl) +
+            '. Raise T and the conventional test starts to over-reject.</p>';
+          checks = [
+            { label: 'Both slopes centered on 0 (|bias| < 0.05)', pass: Math.abs(s.fe.bias) < 0.05 && Math.abs(s.fd.bias) < 0.05 },
+            { label: 'FE and FD identical at T = 2 (max gap < 1e-8)', pass: maxGap < 1e-8 },
+            { label: 'Conventional SE close to the MC SD (0.85 ~ 1.15)', pass: ratioC >= 0.85 && ratioC <= 1.15 },
+            { label: 'Clustered SE close to the MC SD (0.85 ~ 1.15)', pass: ratioCl >= 0.85 && ratioCl <= 1.15 }
+          ];
+        } else {
+          html = '<p>With β = 0 both slopes center on zero: FE <span class="key">' + fmt(feAtt) + '</span>, FD <span class="key">' + fmt(fdAtt) +
+            '</span>. Measurement error cannot attenuate a zero effect, so the point estimates look fine.</p>' +
+            '<p>Inference is where it breaks. Conventional FE SE averages <span class="key">' + fmt(s.seConv.mean) +
+            '</span> against an actual spread of <span class="key">' + fmt(mcSd) + '</span> (ratio ' + fmt(ratioC, 2) +
+            '), while the clustered SE averages ' + fmt(s.seCl.mean) + ' (ratio ' + fmt(ratioCl, 2) +
+            '). Ignoring the AR(1) dependence in η<sub>it</sub> makes the test over-reject: <span class="key">' + pct(s.rejectConv) +
+            '</span> versus ' + pct(s.rejectCl) + ' at the 5% level.</p>';
+          checks = [
+            { label: 'Both slopes centered on 0 (|bias| < 0.05)', pass: Math.abs(s.fe.bias) < 0.05 && Math.abs(s.fd.bias) < 0.05 },
+            { label: 'Conventional SE understates the MC SD (< 0.9)', pass: ratioC < 0.9 },
+            { label: 'Clustered SE close to the MC SD (0.9 ~ 1.1)', pass: ratioCl >= 0.9 && ratioCl <= 1.1 },
+            { label: 'Conventional test over-rejects (> 10%)', pass: s.rejectConv > 0.1 }
+          ];
+        }
+      } else if (twoT) {
+        html = '<p>At T = 2 the within transformation has a single degree of freedom per unit, so FE collapses onto FD: the largest gap across replications is ' +
+          maxGap.toExponential(1) + '. Both average <span class="key">' + fmt(feAtt) + '</span> against a true β of ' + fmt(beta0, 2) +
+          ' — this is pure differencing, with no averaging over periods to recover any signal.</p>' +
+          '<p>Attenuation here comes from ρ<sub>x</sub> = ' + fmt(params().rhoX, 2) + ' and σ<sub>v</sub> = ' + fmt(params().sigmaV, 2) +
+          ': differencing keeps only the innovation in x*, while doubling the variance of the measurement error. With one difference per unit, ' +
+          'the clustered SE (' + fmt(s.seCl.mean) + ') has little to correct over the conventional one (' + fmt(s.seConv.mean) +
+          '), and both are close to the actual spread of ' + fmt(mcSd) + '. Raise T and FE starts averaging over more periods, so the FE–FD gap reopens.</p>';
         checks = [
-          { label: 'Both slopes centered on 0 (|bias| < 0.05)', pass: Math.abs(s.fe.bias) < 0.05 && Math.abs(s.fd.bias) < 0.05 },
-          { label: 'Conventional SE understates the MC SD (< 0.9)', pass: ratioC < 0.9 },
-          { label: 'Clustered SE close to the MC SD (0.9 ~ 1.1)', pass: ratioCl >= 0.9 && ratioCl <= 1.1 },
-          { label: 'Conventional test over-rejects (> 10%)', pass: s.rejectConv > 0.1 }
+          { label: 'FE slope attenuated below ' + fmt(beta0, 2), pass: feAtt < beta0 },
+          { label: 'FD slope attenuated below ' + fmt(beta0, 2), pass: fdAtt < beta0 },
+          { label: 'FE and FD identical at T = 2 (max gap < 1e-8)', pass: maxGap < 1e-8 },
+          { label: 'SEs close to the MC SD (0.85 ~ 1.15)', pass: ratioC >= 0.85 && ratioC <= 1.15 && ratioCl >= 0.85 && ratioCl <= 1.15 }
         ];
       } else {
         html = '<p>True β = ' + fmt(beta0, 2) + ', but FE averages <span class="key">' + fmt(feAtt) + '</span> and FD <span class="key">' + fmt(fdAtt) +

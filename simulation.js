@@ -146,7 +146,9 @@
    * ------------------------------------------------------------------ */
   function makeFEFD(p) {
     var n = Math.max(5, p.n | 0);
-    var T = Math.max(3, p.T | 0);
+    // T = 2 is allowed: FE and FD then coincide exactly, and there is only
+    // one within observation per unit, so clustering adds nothing.
+    var T = Math.max(2, p.T | 0);
     var beta = p.beta == null ? 1 : p.beta;
     var rhoX = p.rhoX;
     var rhoE = p.rhoE;
