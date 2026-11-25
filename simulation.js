@@ -137,25 +137,30 @@
   }
 
   /* ------------------------------------------------------------------ *
-   * 2. Serial correlation in SEs: beta = 0, x persistent,
-   *    eta_it = rhoE*eta_i,t-1 + e_it. n=100, T=10.
-   *    Conventional homoskedastic FE SE vs. unit-clustered SE.
+   * 2. FE vs FD with measurement error and serial correlation:
+   *    y_it = beta*x*_it + alpha_i + eta_it
+   *    x_it = x*_it + v_it
+   *    x*_it = rhoX*x*_i,t-1 + eps_it
+   *    eta_it = rhoE*eta_i,t-1 + e_it
+   *    FE slope with conventional and unit-clustered SEs, plus FD.
    * ------------------------------------------------------------------ */
-  function makeSerial(p) {
+  function makeFEFD(p) {
     var n = Math.max(5, p.n | 0);
     var T = Math.max(3, p.T | 0);
+    var beta = p.beta == null ? 1 : p.beta;
     var rhoX = p.rhoX;
     var rhoE = p.rhoE;
-    var su = p.sigmaU;
+    var sv = p.sigmaV;
     var se = p.sigmaE;
     var reps = p.reps | 0;
     var crit = 1.96;
-    var slope = new Float64Array(reps);
+    var fe = new Float64Array(reps);
+    var fd = new Float64Array(reps);
     var seConv = new Float64Array(reps);
     var seCl = new Float64Array(reps);
     var rejConv = new Uint8Array(reps);
     var rejCl = new Uint8Array(reps);
-    var xSd = su / Math.sqrt(Math.max(1e-12, 1 - rhoX * rhoX));
+    var xSd = 1 / Math.sqrt(Math.max(1e-12, 1 - rhoX * rhoX));
     var eSd = se / Math.sqrt(Math.max(1e-12, 1 - rhoE * rhoE));
     var df = n * (T - 1) - 1;
 
@@ -164,18 +169,19 @@
       step: function (r) {
         var rng = rngFor(p.seed, r);
         var xd = new Array(n), yd = new Array(n);
+        var xr = new Array(n), yr = new Array(n);
         var i, t;
 
         for (i = 0; i < n; i++) {
           var xi = new Float64Array(T), yi = new Float64Array(T);
           var alpha = randn(rng);
-          var xv = xSd * randn(rng);
-          var ev = eSd * randn(rng);
+          var xs = xSd * randn(rng);
+          var eta = eSd * randn(rng);
           for (t = 0; t < T; t++) {
-            xi[t] = xv;
-            yi[t] = alpha + ev; // beta = 0
-            xv = rhoX * xv + su * randn(rng);
-            ev = rhoE * ev + se * randn(rng);
+            xi[t] = xs + sv * randn(rng);
+            yi[t] = beta * xs + alpha + eta;
+            xs = rhoX * xs + randn(rng);
+            eta = rhoE * eta + se * randn(rng);
           }
           var xbar = 0, ybar = 0;
           for (t = 0; t < T; t++) { xbar += xi[t]; ybar += yi[t]; }
@@ -183,6 +189,7 @@
           var dx = new Float64Array(T), dy = new Float64Array(T);
           for (t = 0; t < T; t++) { dx[t] = xi[t] - xbar; dy[t] = yi[t] - ybar; }
           xd[i] = dx; yd[i] = dy;
+          xr[i] = xi; yr[i] = yi;
         }
 
         var sxx = 0, sxy = 0;
@@ -190,7 +197,7 @@
           for (t = 0; t < T; t++) { sxx += xd[i][t] * xd[i][t]; sxy += xd[i][t] * yd[i][t]; }
         }
         var b = sxy / sxx;
-        slope[r] = b;
+        fe[r] = b;
 
         var ss = 0, meat = 0;
         for (i = 0; i < n; i++) {
@@ -206,83 +213,14 @@
         var cl = Math.sqrt(meat / (sxx * sxx) * (n / (n - 1)));
         seConv[r] = conv;
         seCl[r] = cl;
-        rejConv[r] = Math.abs(b / conv) > crit ? 1 : 0;
-        rejCl[r] = Math.abs(b / cl) > crit ? 1 : 0;
-      },
-      result: function () {
-        return {
-          stats: {
-            slope: summarize(slope, 0),
-            seConv: summarize(seConv, null),
-            seCl: summarize(seCl, null),
-            rejectConv: rate(rejConv),
-            rejectCl: rate(rejCl)
-          },
-          arrays: {
-            slope: Array.from(slope),
-            seConv: Array.from(seConv),
-            seCl: Array.from(seCl),
-            rejectConv: Array.from(rejConv),
-            rejectCl: Array.from(rejCl)
-          },
-          meta: { truth: 0, truthLabel: 'β = 0', crit: crit }
-        };
-      }
-    };
-  }
-
-  /* ------------------------------------------------------------------ *
-   * 3. FE vs FD with measurement error:
-   *    y_it = x*_it + alpha_i + eta_it, x*_it AR(1) rho=0.9,
-   *    observed x_it = x*_it + v_it. Compare attenuation of FE and FD.
-   * ------------------------------------------------------------------ */
-  function makeMeasurement(p) {
-    var n = Math.max(5, p.n | 0);
-    var T = Math.max(3, p.T | 0);
-    var rho = p.rhoX;
-    var sv = p.sigmaV;
-    var se = p.sigmaEta;
-    var reps = p.reps | 0;
-    var fe = new Float64Array(reps);
-    var fd = new Float64Array(reps);
-    var xSd = 1 / Math.sqrt(Math.max(1e-12, 1 - rho * rho));
-
-    return {
-      reps: reps,
-      step: function (r) {
-        var rng = rngFor(p.seed, r);
-        var xo = new Array(n), y = new Array(n);
-        var i, t;
-
-        for (i = 0; i < n; i++) {
-          var xi = new Float64Array(T), yi = new Float64Array(T);
-          var alpha = randn(rng);
-          var xs = xSd * randn(rng);
-          for (t = 0; t < T; t++) {
-            xi[t] = xs + sv * randn(rng);
-            yi[t] = xs + alpha + se * randn(rng);
-            xs = rho * xs + randn(rng);
-          }
-          xo[i] = xi; y[i] = yi;
-        }
-
-        var wxx = 0, wxy = 0;
-        for (i = 0; i < n; i++) {
-          var mx = 0, my = 0;
-          for (t = 0; t < T; t++) { mx += xo[i][t]; my += y[i][t]; }
-          mx /= T; my /= T;
-          for (t = 0; t < T; t++) {
-            var dx = xo[i][t] - mx, dy = y[i][t] - my;
-            wxx += dx * dx; wxy += dx * dy;
-          }
-        }
-        fe[r] = wxy / wxx;
+        rejConv[r] = Math.abs(b - beta) / conv > crit ? 1 : 0;
+        rejCl[r] = Math.abs(b - beta) / cl > crit ? 1 : 0;
 
         var dxx = 0, dxy = 0;
         for (i = 0; i < n; i++) {
           for (t = 1; t < T; t++) {
-            var dx2 = xo[i][t] - xo[i][t - 1];
-            var dy2 = y[i][t] - y[i][t - 1];
+            var dx2 = xr[i][t] - xr[i][t - 1];
+            var dy2 = yr[i][t] - yr[i][t - 1];
             dxx += dx2 * dx2; dxy += dx2 * dy2;
           }
         }
@@ -291,18 +229,29 @@
       result: function () {
         return {
           stats: {
-            fe: summarize(fe, 1),
-            fd: summarize(fd, 1)
+            fe: summarize(fe, beta),
+            fd: summarize(fd, beta),
+            seConv: summarize(seConv, null),
+            seCl: summarize(seCl, null),
+            rejectConv: rate(rejConv),
+            rejectCl: rate(rejCl)
           },
-          arrays: { fe: Array.from(fe), fd: Array.from(fd) },
-          meta: { truth: 1, truthLabel: 'β = 1' }
+          arrays: {
+            fe: Array.from(fe),
+            fd: Array.from(fd),
+            seConv: Array.from(seConv),
+            seCl: Array.from(seCl),
+            rejectConv: Array.from(rejConv),
+            rejectCl: Array.from(rejCl)
+          },
+          meta: { truth: beta, truthLabel: 'β = ' + beta, crit: crit }
         };
       }
     };
   }
 
   /* ------------------------------------------------------------------ *
-   * 4. Pooled OLS vs FE vs RE: y_it = beta*x_it + alpha_i + eta_it,
+   * 3. Pooled OLS vs FE vs RE: y_it = beta*x_it + alpha_i + eta_it,
    *    x_it = lambda*alpha_i + b_i + u_it.
    *    Pooled OLS has a common intercept; FE uses within transformation;
    *    RE uses quasi-demeaning with the TRUE variance components.
@@ -379,8 +328,7 @@
   var api = {
     createRunner: function (key, p) {
       if (key === 'nickell') return makeNickell(p);
-      if (key === 'serial') return makeSerial(p);
-      if (key === 'measurement') return makeMeasurement(p);
+      if (key === 'fefd') return makeFEFD(p);
       if (key === 're') return makeRE(p);
       throw new Error('Unknown experiment: ' + key);
     },

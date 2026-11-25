@@ -31,54 +31,33 @@
       ]
     },
 
-    measurement: {
+    fefd: {
       no: '02',
-      tab: 'FE vs FD',
-      title: 'FE vs FD with measurement error — which survives attenuation?',
-      question: 'Predict first: which slope mean is closer to the true value of 1, FE or FD?',
-      formula: 'y<sub>it</sub> = x*<sub>it</sub> + α<sub>i</sub> + η<sub>it</sub><br>x<sub>it</sub> = x*<sub>it</sub> + v<sub>it</sub><br>x*<sub>it</sub> = ρ x*<sub>i,t−1</sub> + ε<sub>it</sub>, ε ~ N(0,1)',
-      defaults: { n: 200, T: 8, reps: 500, rhoX: 0.9, sigmaV: 1, sigmaEta: 1, seed: 42 },
+      tab: 'FE vs FD + serial SEs',
+      title: 'FE vs FD — measurement error and serial correlation',
+      question: 'Predict first: which slope mean is closer to the true β, FE or FD? Then: does the conventional FE standard error match the actual spread of β̂?',
+      formula: 'y<sub>it</sub> = βx*<sub>it</sub> + α<sub>i</sub> + η<sub>it</sub><br>x<sub>it</sub> = x*<sub>it</sub> + v<sub>it</sub><br>x*<sub>it</sub> = ρ<sub>x</sub>x*<sub>i,t−1</sub> + ε<sub>it</sub><br>η<sub>it</sub> = ρ<sub>η</sub>η<sub>i,t−1</sub> + e<sub>it</sub>',
+      defaults: { n: 200, T: 8, reps: 500, beta: 1, rhoX: 0.9, sigmaV: 1, rhoE: 0.8, sigmaE: 1, seed: 42 },
       fields: [
         { key: 'n', label: 'Individuals n', min: 20, max: 1000, step: 10 },
-        { key: 'T', label: 'Periods T', min: 3, max: 30, step: 1 },
-        { key: 'rhoX', label: 'Persistence ρ of x*', min: 0, max: 0.98, step: 0.05 },
-        { key: 'sigmaV', label: 'Measurement error σ<sub>v</sub>', min: 0, max: 3, step: 0.1 },
-        { key: 'sigmaEta', label: 'SD of η<sub>it</sub>', min: 0.1, max: 3, step: 0.1 },
-        { key: 'reps', label: 'Replications R', min: 100, max: 2000, step: 100 },
-        { key: 'seed', label: 'Random seed', min: 1, max: 99999, step: 1 }
-      ],
-      presets: [
-        { label: 'Default: ρ = 0.9', values: { n: 200, T: 8, rhoX: 0.9, sigmaV: 1 } },
-        { label: 'Near random walk: ρ = 0.98', values: { rhoX: 0.98 } },
-        { label: 'No measurement error: σ<sub>v</sub> = 0', values: { sigmaV: 0 } }
-      ]
-    },
-
-    serial: {
-      no: '03',
-      tab: 'Serial-correlated SEs',
-      title: 'Serial correlation in SEs — conventional FE SEs over-reject',
-      question: 'The true β is 0. At a 5% test size, how many of the 500 replications do you expect to be falsely significant?',
-      formula: 'y<sub>it</sub> = βx<sub>it</sub> + α<sub>i</sub> + η<sub>it</sub>, β = 0<br>x AR(1), ρ = 0.8; η<sub>it</sub> = 0.8η<sub>i,t−1</sub> + e<sub>it</sub>',
-      defaults: { n: 100, T: 10, reps: 500, rhoX: 0.8, rhoE: 0.8, sigmaU: 1, sigmaE: 1, seed: 42 },
-      fields: [
-        { key: 'n', label: 'Individuals n', min: 20, max: 500, step: 10 },
         { key: 'T', label: 'Periods T', min: 4, max: 30, step: 1 },
-        { key: 'rhoX', label: 'Persistence ρ of x', min: 0, max: 0.95, step: 0.05 },
-        { key: 'rhoE', label: 'AR(1) coefficient of η', min: 0, max: 0.95, step: 0.05 },
-        { key: 'sigmaU', label: 'SD of x shock', min: 0.1, max: 3, step: 0.1 },
+        { key: 'beta', label: 'True β', min: 0, max: 2, step: 0.1 },
+        { key: 'rhoX', label: 'Persistence ρ<sub>x</sub> of x*', min: 0, max: 0.98, step: 0.05 },
+        { key: 'sigmaV', label: 'Measurement error σ<sub>v</sub>', min: 0, max: 3, step: 0.1 },
+        { key: 'rhoE', label: 'AR(1) coefficient ρ<sub>η</sub>', min: 0, max: 0.95, step: 0.05 },
         { key: 'sigmaE', label: 'SD of e<sub>it</sub>', min: 0.1, max: 3, step: 0.1 },
         { key: 'reps', label: 'Replications R', min: 100, max: 2000, step: 100 },
         { key: 'seed', label: 'Random seed', min: 1, max: 99999, step: 1 }
       ],
       presets: [
-        { label: 'Default: ρ<sub>η</sub> = 0.8', values: { n: 100, T: 10, rhoX: 0.8, rhoE: 0.8 } },
-        { label: 'No serial correlation: ρ<sub>η</sub> = 0', values: { rhoE: 0 } }
+        { label: 'Attenuation, iid η (β = 1, ρ<sub>η</sub> = 0)', values: { beta: 1, rhoE: 0, n: 200, T: 8 } },
+        { label: 'Test size (β = 0, ρ<sub>η</sub> = 0.8)', values: { beta: 0, rhoE: 0.8, n: 100, T: 10 } },
+        { label: 'No measurement error (σ<sub>v</sub> = 0)', values: { beta: 1, sigmaV: 0, rhoE: 0 } }
       ]
     },
 
     nickell: {
-      no: '04',
+      no: '03',
       tab: 'Nickell bias',
       title: 'Nickell bias — FE is biased downward in short dynamic panels',
       question: 'Predict first: at T = 4, which estimator is biased upward more, pooled OLS or FE? What changes when T = 30?',
@@ -243,14 +222,17 @@
       html = metricCard('Pooled OLS mean', fmt(s.ols.mean), 'Bias ' + signed(s.ols.bias), 'accent') +
         metricCard('FE (within) mean', fmt(s.fe.mean), 'Bias ' + signed(s.fe.bias), 'sky') +
         metricCard('True φ', fmt(p.phi, 2), 'T = ' + p.T + ' periods');
-    } else if (state.active === 'serial') {
-      html = metricCard('Conventional SE rejection', pct(s.rejectConv), 'Nominal size 5%', 'accent') +
-        metricCard('Clustered SE rejection', pct(s.rejectCl), 'Nominal size 5%', 'sky') +
-        metricCard('Mean SE ratio', fmt(s.seConv.mean / s.seCl.mean, 2), 'Conventional / clustered');
-    } else {
-      html = metricCard('FE attenuated slope', fmt(s.fe.mean), 'True β = 1', 'accent') +
-        metricCard('FD attenuated slope', fmt(s.fd.mean), 'True β = 1', 'amber') +
-        metricCard('FE − FD', fmt(s.fe.mean - s.fd.mean), 'Positive means FE is less biased', 'sky');
+    } else if (state.active === 'fefd') {
+      if (Math.abs(p.beta) < 1e-9) {
+        html = metricCard('Conventional SE rejection', pct(s.rejectConv), 'Nominal size 5%', 'accent') +
+          metricCard('Clustered SE rejection', pct(s.rejectCl), 'Nominal size 5%', 'sky') +
+          metricCard('Mean SE ratio', fmt(s.seConv.mean / s.seCl.mean, 2), 'Conventional / clustered', 'amber');
+      } else {
+        html = metricCard('FE mean slope', fmt(s.fe.mean), 'Bias ' + signed(s.fe.bias), 'accent') +
+          metricCard('FD mean slope', fmt(s.fd.mean), 'Bias ' + signed(s.fd.bias), 'amber') +
+          metricCard('Conv. SE ÷ MC SD', fmt(s.seConv.mean / s.fe.sd, 2), 'Below 1 = over-confident', 'sky') +
+          metricCard('Clustered SE ÷ MC SD', fmt(s.seCl.mean / s.fe.sd, 2), 'Near 1 = calibrated');
+      }
     }
     $('summaryCards').innerHTML = html;
   }
@@ -292,25 +274,29 @@
         statRow('Pooled OLS', s.ols, r.meta.truth),
         statRow('FE (within)', s.fe, r.meta.truth)
       ]);
-    } else if (state.active === 'serial') {
-      setText('resultSubtitle', 'β = 0, so the rejection rate is the false-positive rate; critical value |t| > 1.96.');
-      html = '<div class="table-title">FE slope and two standard errors</div>' +
-        tableHTML(['Metric', 'Mean', 'SD', '5% ~ 95%'], [
-          ['FE slope β̂', fmt(s.slope.mean), fmt(s.slope.sd), fmt(s.slope.p05) + ' ~ ' + fmt(s.slope.p95)],
-          ['Conventional FE SE', fmt(s.seConv.mean), fmt(s.seConv.sd), fmt(s.seConv.p05) + ' ~ ' + fmt(s.seConv.p95)],
-          ['Clustered SE (by unit)', fmt(s.seCl.mean), fmt(s.seCl.sd), fmt(s.seCl.p05) + ' ~ ' + fmt(s.seCl.p95)]
+    } else if (state.active === 'fefd') {
+      var p0 = params(), showSize = Math.abs(p0.beta) < 1e-9, mcSd = s.fe.sd;
+      setText('resultSubtitle', showSize
+        ? 'β = 0, so the rejection rate is the test size; critical value |t| > 1.96. With no signal in x, measurement error cannot bias β̂.'
+        : 'True β = ' + fmt(p0.beta, 2) + '; observed x contains measurement error and η is AR(1). Rejection rates appear only at β = 0, where they measure test size.');
+      html = '<div class="table-title">Slope estimates</div>' +
+        tableHTML(common, [
+          statRow('FE (within)', s.fe, r.meta.truth),
+          statRow('FD (first difference)', s.fd, r.meta.truth)
         ]) +
-        '<div class="table-title">Rejection rate of the 5% two-sided test</div>' +
-        tableHTML(['Test', 'Rejection rate', 'Nominal', 'Verdict'], [
-          ['Conventional FE SE', pct(s.rejectConv), '5.0%', s.rejectConv > 0.1 ? 'Strongly over-rejects' : 'Close to nominal'],
-          ['Clustered SE (by unit)', pct(s.rejectCl), '5.0%', s.rejectCl > 0.1 ? 'Still over-rejects' : 'Close to nominal']
+        '<div class="table-title">FE standard errors vs. actual sampling variation</div>' +
+        tableHTML(['Metric', 'Mean', 'Ratio to MC SD'], [
+          ['Conventional FE SE', fmt(s.seConv.mean), fmt(s.seConv.mean / mcSd)],
+          ['Clustered FE SE (by unit)', fmt(s.seCl.mean), fmt(s.seCl.mean / mcSd)],
+          ['Monte Carlo SD of β̂', fmt(mcSd), '1.00']
         ]);
-    } else {
-      setText('resultSubtitle', 'True β = 1; observed x contains classical measurement error v. FE uses within transformation, FD uses first differences.');
-      html = tableHTML(common, [
-        statRow('FE (within)', s.fe, r.meta.truth),
-        statRow('FD (first difference)', s.fd, r.meta.truth)
-      ]);
+      if (showSize) {
+        html += '<div class="table-title">Rejection rate of the 5% two-sided test (H0: β = 0)</div>' +
+          tableHTML(['Test', 'Rejection rate', 'Nominal', 'Verdict'], [
+            ['Conventional FE SE', pct(s.rejectConv), '5.0%', s.rejectConv > 0.1 ? 'Strongly over-rejects' : 'Close to nominal'],
+            ['Clustered SE (by unit)', pct(s.rejectCl), '5.0%', s.rejectCl > 0.1 ? 'Still over-rejects' : 'Close to nominal']
+          ]);
+      }
     }
     $('resultsTable').innerHTML = html;
     $('csvBtn').disabled = false;
@@ -339,17 +325,13 @@
       ];
       truth = r.meta.truth;
       xLabel = 'Lag coefficient estimate';
-    } else if (state.active === 'serial') {
-      series = [{ label: 'FE slope β̂', values: r.arrays.slope, color: COLORS.slope }];
-      truth = r.meta.truth;
-      xLabel = 'β̂ (truth 0)';
     } else {
       series = [
         { label: 'FE (within)', values: r.arrays.fe, color: COLORS.fe },
         { label: 'FD (first difference)', values: r.arrays.fd, color: COLORS.fd }
       ];
       truth = r.meta.truth;
-      xLabel = 'Slope estimate (truth 1)';
+      xLabel = 'Slope estimate (truth ' + fmt(truth, 2) + ')';
     }
 
     var all = [];
@@ -470,27 +452,39 @@
         { label: 'OLS mean > truth ' + fmt(phi, 2), pass: o.mean > phi },
         { label: 'δ̂<sub>FE</sub> &lt; δ &lt; δ̂<sub>OLS</sub>', pass: f.mean < phi && phi < o.mean }
       ];
-    } else if (state.active === 'serial') {
-      var conv = s.rejectConv, cl = s.rejectCl;
-      html = '<p>Since the true β is 0, the rejection rate is the test size. Conventional FE SE averages <span class="key">' + fmt(s.seConv.mean) +
-        '</span>, while clustered SE averages <span class="key">' + fmt(s.seCl.mean) + '</span>: ignoring the AR(1) dependence in η<sub>it</sub> makes the standard error too small.</p>' +
-        '<p>The conventional test falsely rejects <span class="key">' + pct(conv) + '</span> of true null hypotheses at 5%, versus <span class="key">' +
-        pct(cl) + '</span> with unit-clustered SEs. The point estimate is still roughly unbiased; what breaks is the measure of uncertainty and the test itself.</p>';
-      checks = [
-        { label: 'Conventional SE strongly over-rejects (> 10%)', pass: conv > 0.1 },
-        { label: 'Clustered SE close to nominal 5% (3% ~ 8%)', pass: cl >= 0.03 && cl <= 0.08 }
-      ];
     } else {
-      var feAtt = s.fe.mean, fdAtt = s.fd.mean;
-      html = '<p>The true β is 1, but the FE mean is only <span class="key">' + fmt(feAtt) + '</span> and the FD mean <span class="key">' + fmt(fdAtt) +
-        '</span>: both are attenuated. With ρ = ' + fmt(params().rhoX, 2) + ', the within transformation leaves very little genuine signal in x*, which is the source of FE attenuation.</p>' +
-        '<p>FD also removes α<sub>i</sub>, but turns the measurement error into v<sub>it</sub> − v<sub>i,t−1</sub>, nearly doubling its variance. Here ' +
-        (fdAtt < feAtt ? 'FD is more attenuated' : 'FE is more attenuated') + ' — change ρ or σ<sub>v</sub> and run again to see the ranking flip.</p>';
-      checks = [
-        { label: 'FE slope attenuated (< 1)', pass: feAtt < 1 },
-        { label: 'FD slope attenuated (< 1)', pass: fdAtt < 1 },
-        { label: 'At this ρ, FD is more attenuated', pass: fdAtt < feAtt }
-      ];
+      var feAtt = s.fe.mean, fdAtt = s.fd.mean, beta0 = r.meta.truth;
+      var mcSd = s.fe.sd, ratioC = s.seConv.mean / mcSd, ratioCl = s.seCl.mean / mcSd;
+      if (Math.abs(beta0) < 1e-9) {
+        html = '<p>With β = 0 both slopes center on zero: FE <span class="key">' + fmt(feAtt) + '</span>, FD <span class="key">' + fmt(fdAtt) +
+          '</span>. Measurement error cannot attenuate a zero effect, so the point estimates look fine.</p>' +
+          '<p>Inference is where it breaks. Conventional FE SE averages <span class="key">' + fmt(s.seConv.mean) +
+          '</span> against an actual spread of <span class="key">' + fmt(mcSd) + '</span> (ratio ' + fmt(ratioC, 2) +
+          '), while the clustered SE averages ' + fmt(s.seCl.mean) + ' (ratio ' + fmt(ratioCl, 2) +
+          '). Ignoring the AR(1) dependence in η<sub>it</sub> makes the test over-reject: <span class="key">' + pct(s.rejectConv) +
+          '</span> versus ' + pct(s.rejectCl) + ' at the 5% level.</p>';
+        checks = [
+          { label: 'Both slopes centered on 0 (|bias| < 0.05)', pass: Math.abs(s.fe.bias) < 0.05 && Math.abs(s.fd.bias) < 0.05 },
+          { label: 'Conventional SE understates the MC SD (< 0.9)', pass: ratioC < 0.9 },
+          { label: 'Clustered SE close to the MC SD (0.9 ~ 1.1)', pass: ratioCl >= 0.9 && ratioCl <= 1.1 },
+          { label: 'Conventional test over-rejects (> 10%)', pass: s.rejectConv > 0.1 }
+        ];
+      } else {
+        html = '<p>True β = ' + fmt(beta0, 2) + ', but FE averages <span class="key">' + fmt(feAtt) + '</span> and FD <span class="key">' + fmt(fdAtt) +
+          '</span>: both are attenuated. With ρ<sub>x</sub> = ' + fmt(params().rhoX, 2) +
+          ', the within transformation leaves little genuine signal in x* relative to the measurement noise.</p>' +
+          '<p>FD also removes α<sub>i</sub>, but differencing turns v<sub>it</sub> into v<sub>it</sub> − v<sub>i,t−1</sub>, so ' +
+          (fdAtt < feAtt ? 'FD is more attenuated here' : 'FE is more attenuated here') + '. Bias and uncertainty are separate problems: the conventional FE SE averages ' +
+          fmt(s.seConv.mean) + ' against an actual spread of ' + fmt(mcSd) + ' (ratio ' + fmt(ratioC, 2) +
+          '), while the clustered SE averages ' + fmt(s.seCl.mean) + ' (ratio ' + fmt(ratioCl, 2) + ').</p>' +
+          '<p>Set β = 0 (preset) to read rejection rates as test size.</p>';
+        checks = [
+          { label: 'FE slope attenuated below ' + fmt(beta0, 2), pass: feAtt < beta0 },
+          { label: 'FD slope attenuated below ' + fmt(beta0, 2), pass: fdAtt < beta0 },
+          { label: 'At this ρ<sub>x</sub>, FD is more attenuated', pass: fdAtt < feAtt },
+          { label: 'Clustered SE close to the MC SD (0.9 ~ 1.1)', pass: ratioCl >= 0.9 && ratioCl <= 1.1 }
+        ];
+      }
     }
     $('interpretation').className = 'interpretation';
     $('interpretation').innerHTML = html;
@@ -511,11 +505,9 @@
       header = ['rep', 'pooled_ols', 'fe_within', 're_gls']; keys = ['ols', 'fe', 're'];
     } else if (state.active === 'nickell') {
       header = ['rep', 'pooled_ols', 'fe_within']; keys = ['ols', 'fe'];
-    } else if (state.active === 'serial') {
-      header = ['rep', 'fe_slope', 'se_conventional', 'se_clustered', 'reject_conventional', 'reject_clustered'];
-      keys = ['slope', 'seConv', 'seCl', 'rejectConv', 'rejectCl'];
     } else {
-      header = ['rep', 'fe_within', 'fd']; keys = ['fe', 'fd'];
+      header = ['rep', 'fe_within', 'fd', 'se_conventional', 'se_clustered', 'reject_conventional', 'reject_clustered'];
+      keys = ['fe', 'fd', 'seConv', 'seCl', 'rejectConv', 'rejectCl'];
     }
     var lines = [header.join(',')];
     var n = r.arrays[keys[0]].length;
