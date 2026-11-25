@@ -9,7 +9,7 @@
     re: {
       no: '01',
       tab: 'FE vs RE vs OLS',
-      title: 'Pooled OLS vs FE vs RE · does the individual effect correlate with x?',
+      title: 'Pooled OLS vs FE vs RE — does the individual effect correlate with x?',
       question: 'Predict first: when α<sub>i</sub> and x<sub>it</sub> are correlated, which estimator still centers on β = 1? Set λ to 0 to see who becomes efficient.',
       formula: 'y<sub>it</sub> = βx<sub>it</sub> + α<sub>i</sub> + η<sub>it</sub>, β = 1<br>x<sub>it</sub> = λα<sub>i</sub> + b<sub>i</sub> + u<sub>it</sub>',
       defaults: { n: 200, T: 8, reps: 500, lambda: 0.8, sigmaAlpha: 1, sigmaB: 2, sigmaU: 1, sigmaEta: 1, seed: 42 },
@@ -34,9 +34,9 @@
     measurement: {
       no: '02',
       tab: 'FE vs FD',
-      title: 'FE vs FD with measurement error · which survives attenuation?',
+      title: 'FE vs FD with measurement error — which survives attenuation?',
       question: 'x* is highly persistent (ρ = 0.9). Predict first: which slope mean is closer to the true value of 1, FE or FD?',
-      formula: 'y<sub>it</sub> = x*<sub>it</sub> + α<sub>i</sub> + η<sub>it</sub><br>x<sub>it</sub> = x*<sub>it</sub> + v<sub>it</sub> · x* AR(1) ρ = 0.9',
+      formula: 'y<sub>it</sub> = x*<sub>it</sub> + α<sub>i</sub> + η<sub>it</sub><br>x<sub>it</sub> = x*<sub>it</sub> + v<sub>it</sub>; x* AR(1), ρ = 0.9',
       defaults: { n: 200, T: 8, reps: 500, rhoX: 0.9, sigmaV: 1, sigmaEta: 1, seed: 42 },
       fields: [
         { key: 'n', label: 'Individuals n', min: 20, max: 1000, step: 10 },
@@ -57,9 +57,9 @@
     serial: {
       no: '03',
       tab: 'Serial-correlated SEs',
-      title: 'Serial correlation in SEs · conventional FE SEs over-reject',
+      title: 'Serial correlation in SEs — conventional FE SEs over-reject',
       question: 'The true β is 0. At a 5% test size, how many of the 500 replications do you expect to be falsely significant?',
-      formula: 'y<sub>it</sub> = βx<sub>it</sub> + α<sub>i</sub> + η<sub>it</sub>, β = 0<br>x AR(1) ρ = 0.8 · η<sub>it</sub> = 0.8η<sub>i,t−1</sub> + e<sub>it</sub>',
+      formula: 'y<sub>it</sub> = βx<sub>it</sub> + α<sub>i</sub> + η<sub>it</sub>, β = 0<br>x AR(1), ρ = 0.8; η<sub>it</sub> = 0.8η<sub>i,t−1</sub> + e<sub>it</sub>',
       defaults: { n: 100, T: 10, reps: 500, rhoX: 0.8, rhoE: 0.8, sigmaU: 1, sigmaE: 1, seed: 42 },
       fields: [
         { key: 'n', label: 'Individuals n', min: 20, max: 500, step: 10 },
@@ -80,9 +80,9 @@
     nickell: {
       no: '04',
       tab: 'Nickell bias',
-      title: 'Nickell bias · FE is biased downward in short dynamic panels',
+      title: 'Nickell bias — FE is biased downward in short dynamic panels',
       question: 'Predict first: at T = 4, which estimator is biased upward more, pooled OLS or FE? What changes when T = 30?',
-      formula: 'y<sub>it</sub> = φ y<sub>i,t−1</sub> + α<sub>i</sub> + η<sub>it</sub><br>n = 200 · φ = 0.7 · η ~ N(0,1)',
+      formula: 'y<sub>it</sub> = φ y<sub>i,t−1</sub> + α<sub>i</sub> + η<sub>it</sub><br>n = 200; φ = 0.7; η ~ N(0,1)',
       defaults: { n: 200, T: 4, reps: 500, phi: 0.7, sigmaAlpha: 1, sigmaEta: 1, seed: 42 },
       fields: [
         { key: 'n', label: 'Individuals n', min: 20, max: 1000, step: 10 },
@@ -153,9 +153,9 @@
     var e = cfg();
     $('dgpFormula').innerHTML = e.formula;
     $('experimentIntro').innerHTML =
-      '<div class="intro-kicker">DGP ' + e.no + ' · Monte Carlo</div>' +
+      '<div class="intro-kicker">DGP ' + e.no + ' / Monte Carlo</div>' +
       '<h2>' + e.title + '</h2>' +
-      '<p>' + e.formula.replace(/<br\s*\/?>/g, ' · ') + '</p>' +
+      '<p>' + e.formula.replace(/<br\s*\/?>/g, '; ') + '</p>' +
       '<div class="question">' + e.question + '</div>';
   }
 
@@ -221,9 +221,9 @@
     if (success) {
       state.result = state.runner.result();
       renderResults();
-      updateProgress(1, 'Done · ' + state.runner.reps + ' replications');
+      updateProgress(1, 'Done — ' + state.runner.reps + ' replications');
     } else {
-      updateProgress(state.done / state.runner.reps, 'Stopped · ' + state.done + ' / ' + state.runner.reps + ' runs');
+      updateProgress(state.done / state.runner.reps, 'Stopped — ' + state.done + ' / ' + state.runner.reps + ' runs');
     }
   }
 
