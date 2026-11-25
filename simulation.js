@@ -162,6 +162,10 @@
     var seCl = new Float64Array(reps);
     var rejConv = new Uint8Array(reps);
     var rejCl = new Uint8Array(reps);
+    var seConvFd = new Float64Array(reps);
+    var seClFd = new Float64Array(reps);
+    var rejConvFd = new Uint8Array(reps);
+    var rejClFd = new Uint8Array(reps);
     var xSd = 1 / Math.sqrt(Math.max(1e-12, 1 - rhoX * rhoX));
     var eSd = se / Math.sqrt(Math.max(1e-12, 1 - rhoE * rhoE));
     var df = n * (T - 1) - 1;
@@ -226,7 +230,27 @@
             dxx += dx2 * dx2; dxy += dx2 * dy2;
           }
         }
-        fd[r] = dxy / dxx;
+        var bFd = dxy / dxx;
+        fd[r] = bFd;
+
+        var ssFd = 0, meatFd = 0;
+        for (i = 0; i < n; i++) {
+          var scoreFd = 0;
+          for (t = 1; t < T; t++) {
+            var rdx = xr[i][t] - xr[i][t - 1];
+            var rdy = yr[i][t] - yr[i][t - 1];
+            var residFd = rdy - bFd * rdx;
+            ssFd += residFd * residFd;
+            scoreFd += rdx * residFd;
+          }
+          meatFd += scoreFd * scoreFd;
+        }
+        var convFd = Math.sqrt((ssFd / df) / dxx);
+        var clFd = Math.sqrt(meatFd / (dxx * dxx) * (n / (n - 1)));
+        seConvFd[r] = convFd;
+        seClFd[r] = clFd;
+        rejConvFd[r] = Math.abs(bFd - beta) / convFd > crit ? 1 : 0;
+        rejClFd[r] = Math.abs(bFd - beta) / clFd > crit ? 1 : 0;
       },
       result: function () {
         return {
@@ -235,16 +259,24 @@
             fd: summarize(fd, beta),
             seConv: summarize(seConv, null),
             seCl: summarize(seCl, null),
+            seConvFd: summarize(seConvFd, null),
+            seClFd: summarize(seClFd, null),
             rejectConv: rate(rejConv),
-            rejectCl: rate(rejCl)
+            rejectCl: rate(rejCl),
+            rejectConvFd: rate(rejConvFd),
+            rejectClFd: rate(rejClFd)
           },
           arrays: {
             fe: Array.from(fe),
             fd: Array.from(fd),
             seConv: Array.from(seConv),
             seCl: Array.from(seCl),
+            seConvFd: Array.from(seConvFd),
+            seClFd: Array.from(seClFd),
             rejectConv: Array.from(rejConv),
-            rejectCl: Array.from(rejCl)
+            rejectCl: Array.from(rejCl),
+            rejectConvFd: Array.from(rejConvFd),
+            rejectClFd: Array.from(rejClFd)
           },
           meta: { truth: beta, truthLabel: 'β = ' + beta, crit: crit }
         };

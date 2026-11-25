@@ -225,14 +225,15 @@
         metricCard('True φ', fmt(p.phi, 2), 'T = ' + p.T + ' periods');
     } else if (state.active === 'fefd') {
       if (Math.abs(p.beta) < 1e-9) {
-        html = metricCard('Conventional SE rejection', pct(s.rejectConv), 'Nominal size 5%', 'accent') +
-          metricCard('Clustered SE rejection', pct(s.rejectCl), 'Nominal size 5%', 'sky') +
-          metricCard('Mean SE ratio', fmt(s.seConv.mean / s.seCl.mean, 2), 'Conventional / clustered', 'amber');
+        html = metricCard('FE, conventional SE', pct(s.rejectConv), 'Rejection rate, nominal 5%', 'accent') +
+          metricCard('FE, clustered SE', pct(s.rejectCl), 'Rejection rate, nominal 5%', 'sky') +
+          metricCard('FD, conventional SE', pct(s.rejectConvFd), 'Rejection rate, nominal 5%', 'amber') +
+          metricCard('FD, clustered SE', pct(s.rejectClFd), 'Rejection rate, nominal 5%');
       } else {
         html = metricCard('FE mean slope', fmt(s.fe.mean), 'Bias ' + signed(s.fe.bias), 'accent') +
           metricCard('FD mean slope', fmt(s.fd.mean), 'Bias ' + signed(s.fd.bias), 'amber') +
-          metricCard('Conv. SE ÷ MC SD', fmt(s.seConv.mean / s.fe.sd, 2), 'Below 1 = over-confident', 'sky') +
-          metricCard('Clustered SE ÷ MC SD', fmt(s.seCl.mean / s.fe.sd, 2), 'Near 1 = calibrated');
+          metricCard('FE SE ÷ MC SD', fmt(s.seConv.mean / s.fe.sd, 2) + ' / ' + fmt(s.seCl.mean / s.fe.sd, 2), 'Conventional / clustered', 'sky') +
+          metricCard('FD SE ÷ MC SD', fmt(s.seConvFd.mean / s.fd.sd, 2) + ' / ' + fmt(s.seClFd.mean / s.fd.sd, 2), 'Conventional / clustered');
       }
     }
     $('summaryCards').innerHTML = html;
@@ -276,28 +277,37 @@
         statRow('FE (within)', s.fe, r.meta.truth)
       ]);
     } else if (state.active === 'fefd') {
-      var p0 = params(), showSize = Math.abs(p0.beta) < 1e-9, mcSd = s.fe.sd;
+      var p0 = params(), showSize = Math.abs(p0.beta) < 1e-9;
+      var mcFe = s.fe.sd, mcFd = s.fd.sd;
       var sub = showSize
         ? 'β = 0, so the rejection rate is the test size; critical value |t| > 1.96. With no signal in x, measurement error cannot bias β̂.'
         : 'True β = ' + fmt(p0.beta, 2) + '; observed x contains measurement error and η is AR(1). Rejection rates appear only at β = 0, where they measure test size.';
       if (p0.T === 2) sub += ' At T = 2 there is one within observation per unit, so FE and FD are the same estimator.';
       setText('resultSubtitle', sub);
+      var verdict = function (x) {
+        return x > 0.1 ? 'Over-rejects' : (x < 0.03 ? 'Under-rejects' : 'Close to nominal');
+      };
       html = '<div class="table-title">Slope estimates</div>' +
         tableHTML(common, [
           statRow('FE (within)', s.fe, r.meta.truth),
           statRow('FD (first difference)', s.fd, r.meta.truth)
         ]) +
-        '<div class="table-title">FE standard errors vs. actual sampling variation</div>' +
+        '<div class="table-title">Standard errors vs. actual sampling variation (ratio uses the MC SD of the same estimator)</div>' +
         tableHTML(['Metric', 'Mean', 'Ratio to MC SD'], [
-          ['Conventional FE SE', fmt(s.seConv.mean), fmt(s.seConv.mean / mcSd)],
-          ['Clustered FE SE (by unit)', fmt(s.seCl.mean), fmt(s.seCl.mean / mcSd)],
-          ['Monte Carlo SD of β̂', fmt(mcSd), '1.00']
+          ['FE — conventional SE', fmt(s.seConv.mean), fmt(s.seConv.mean / mcFe)],
+          ['FE — clustered SE (by unit)', fmt(s.seCl.mean), fmt(s.seCl.mean / mcFe)],
+          ['FD — conventional SE', fmt(s.seConvFd.mean), fmt(s.seConvFd.mean / mcFd)],
+          ['FD — clustered SE (by unit)', fmt(s.seClFd.mean), fmt(s.seClFd.mean / mcFd)],
+          ['Monte Carlo SD of β̂ (FE)', fmt(mcFe), '1.00'],
+          ['Monte Carlo SD of β̂ (FD)', fmt(mcFd), '1.00']
         ]);
       if (showSize) {
         html += '<div class="table-title">Rejection rate of the 5% two-sided test (H0: β = 0)</div>' +
-          tableHTML(['Test', 'Rejection rate', 'Nominal', 'Verdict'], [
-            ['Conventional FE SE', pct(s.rejectConv), '5.0%', s.rejectConv > 0.1 ? 'Strongly over-rejects' : 'Close to nominal'],
-            ['Clustered SE (by unit)', pct(s.rejectCl), '5.0%', s.rejectCl > 0.1 ? 'Still over-rejects' : 'Close to nominal']
+          tableHTML(['Estimator and SE', 'Rejection rate', 'Nominal', 'Verdict'], [
+            ['FE — conventional SE', pct(s.rejectConv), '5.0%', verdict(s.rejectConv)],
+            ['FE — clustered SE (by unit)', pct(s.rejectCl), '5.0%', verdict(s.rejectCl)],
+            ['FD — conventional SE', pct(s.rejectConvFd), '5.0%', verdict(s.rejectConvFd)],
+            ['FD — clustered SE (by unit)', pct(s.rejectClFd), '5.0%', verdict(s.rejectClFd)]
           ]);
       }
     }
@@ -457,7 +467,9 @@
       ];
     } else {
       var feAtt = s.fe.mean, fdAtt = s.fd.mean, beta0 = r.meta.truth;
-      var mcSd = s.fe.sd, ratioC = s.seConv.mean / mcSd, ratioCl = s.seCl.mean / mcSd;
+      var mcFe = s.fe.sd, mcFd = s.fd.sd;
+      var ratioC = s.seConv.mean / mcFe, ratioCl = s.seCl.mean / mcFe;
+      var ratioCfd = s.seConvFd.mean / mcFd, ratioClfd = s.seClFd.mean / mcFd;
       var twoT = params().T === 2, maxGap = 0;
       for (var gi = 0; gi < r.arrays.fe.length; gi++) {
         maxGap = Math.max(maxGap, Math.abs(r.arrays.fe[gi] - r.arrays.fd[gi]));
@@ -466,30 +478,35 @@
         if (twoT) {
           html = '<p>With β = 0 both slopes center on zero: FE <span class="key">' + fmt(feAtt) + '</span>, FD <span class="key">' + fmt(fdAtt) +
             '</span>. At T = 2 the two estimators coincide exactly (largest gap across replications: ' + maxGap.toExponential(1) + '), ' +
-            'because the within transformation has only one degree of freedom per unit.</p>' +
+            'because the within transformation has only one degree of freedom per unit, so the FD rows simply repeat the FE rows.</p>' +
             '<p>With a single difference per unit there is no within-unit serial correlation left for clustering to fix, so the conventional SE (' +
             fmt(s.seConv.mean) + ') and the clustered SE (' + fmt(s.seCl.mean) + ') nearly coincide, and both sit close to the actual spread of ' +
-            fmt(mcSd) + '. Rejection rates: <span class="key">' + pct(s.rejectConv) + '</span> versus ' + pct(s.rejectCl) +
-            '. Raise T and the conventional test starts to over-reject.</p>';
+            fmt(mcFe) + '. Rejection rates: <span class="key">' + pct(s.rejectConv) + '</span> versus ' + pct(s.rejectCl) +
+            '. Raise T and both the FE–FD gap and the over-rejection of the conventional FE test reappear.</p>';
           checks = [
             { label: 'Both slopes centered on 0 (|bias| < 0.05)', pass: Math.abs(s.fe.bias) < 0.05 && Math.abs(s.fd.bias) < 0.05 },
             { label: 'FE and FD identical at T = 2 (max gap < 1e-8)', pass: maxGap < 1e-8 },
-            { label: 'Conventional SE close to the MC SD (0.85 ~ 1.15)', pass: ratioC >= 0.85 && ratioC <= 1.15 },
-            { label: 'Clustered SE close to the MC SD (0.85 ~ 1.15)', pass: ratioCl >= 0.85 && ratioCl <= 1.15 }
+            { label: 'FE conventional SE close to the MC SD (0.85 ~ 1.15)', pass: ratioC >= 0.85 && ratioC <= 1.15 },
+            { label: 'FE clustered SE close to the MC SD (0.85 ~ 1.15)', pass: ratioCl >= 0.85 && ratioCl <= 1.15 }
           ];
         } else {
           html = '<p>With β = 0 both slopes center on zero: FE <span class="key">' + fmt(feAtt) + '</span>, FD <span class="key">' + fmt(fdAtt) +
             '</span>. Measurement error cannot attenuate a zero effect, so the point estimates look fine.</p>' +
-            '<p>Inference is where it breaks. Conventional FE SE averages <span class="key">' + fmt(s.seConv.mean) +
-            '</span> against an actual spread of <span class="key">' + fmt(mcSd) + '</span> (ratio ' + fmt(ratioC, 2) +
+            '<p>Inference is where it breaks — but only for FE. Its conventional SE averages <span class="key">' + fmt(s.seConv.mean) +
+            '</span> against an actual spread of <span class="key">' + fmt(mcFe) + '</span> (ratio ' + fmt(ratioC, 2) +
             '), while the clustered SE averages ' + fmt(s.seCl.mean) + ' (ratio ' + fmt(ratioCl, 2) +
-            '). Ignoring the AR(1) dependence in η<sub>it</sub> makes the test over-reject: <span class="key">' + pct(s.rejectConv) +
-            '</span> versus ' + pct(s.rejectCl) + ' at the 5% level.</p>';
+            '). Ignoring the AR(1) dependence in η<sub>it</sub> makes the FE test over-reject: <span class="key">' + pct(s.rejectConv) +
+            '</span> versus ' + pct(s.rejectCl) + ' at the 5% level.</p>' +
+            '<p>FD is far less affected: conventional SE ' + fmt(s.seConvFd.mean) + ' against a spread of ' + fmt(mcFd) +
+            ' (ratio ' + fmt(ratioCfd, 2) + '), clustered ' + fmt(s.seClFd.mean) + ' (ratio ' + fmt(ratioClfd, 2) +
+            '), so rejection rates are ' + pct(s.rejectConvFd) + ' and ' + pct(s.rejectClFd) + '. Differencing removes most of the persistence in η<sub>it</sub>; ' +
+            'the within transformation keeps it, which is why the FE test breaks first.</p>';
           checks = [
             { label: 'Both slopes centered on 0 (|bias| < 0.05)', pass: Math.abs(s.fe.bias) < 0.05 && Math.abs(s.fd.bias) < 0.05 },
-            { label: 'Conventional SE understates the MC SD (< 0.9)', pass: ratioC < 0.9 },
-            { label: 'Clustered SE close to the MC SD (0.9 ~ 1.1)', pass: ratioCl >= 0.9 && ratioCl <= 1.1 },
-            { label: 'Conventional test over-rejects (> 10%)', pass: s.rejectConv > 0.1 }
+            { label: 'FE conventional SE understates the MC SD (< 0.9)', pass: ratioC < 0.9 },
+            { label: 'FE clustered SE close to the MC SD (0.9 ~ 1.1)', pass: ratioCl >= 0.9 && ratioCl <= 1.1 },
+            { label: 'FE conventional test over-rejects (> 10%)', pass: s.rejectConv > 0.1 },
+            { label: 'FD conventional test does not over-reject (< 10%)', pass: s.rejectConvFd <= 0.1 }
           ];
         }
       } else if (twoT) {
@@ -498,28 +515,30 @@
           ' — this is pure differencing, with no averaging over periods to recover any signal.</p>' +
           '<p>Attenuation here comes from ρ<sub>x</sub> = ' + fmt(params().rhoX, 2) + ' and σ<sub>v</sub> = ' + fmt(params().sigmaV, 2) +
           ': differencing keeps only the innovation in x*, while doubling the variance of the measurement error. With one difference per unit, ' +
-          'the clustered SE (' + fmt(s.seCl.mean) + ') has little to correct over the conventional one (' + fmt(s.seConv.mean) +
-          '), and both are close to the actual spread of ' + fmt(mcSd) + '. Raise T and FE starts averaging over more periods, so the FE–FD gap reopens.</p>';
+          'the clustered SE (' + fmt(s.seClFd.mean) + ') has little to correct over the conventional one (' + fmt(s.seConvFd.mean) +
+          '), and both are close to the actual spread of ' + fmt(mcFd) + '. Raise T and FE starts averaging over more periods, so the FE–FD gap reopens.</p>';
         checks = [
           { label: 'FE slope attenuated below ' + fmt(beta0, 2), pass: feAtt < beta0 },
           { label: 'FD slope attenuated below ' + fmt(beta0, 2), pass: fdAtt < beta0 },
           { label: 'FE and FD identical at T = 2 (max gap < 1e-8)', pass: maxGap < 1e-8 },
-          { label: 'SEs close to the MC SD (0.85 ~ 1.15)', pass: ratioC >= 0.85 && ratioC <= 1.15 && ratioCl >= 0.85 && ratioCl <= 1.15 }
+          { label: 'Both SEs close to the MC SD (0.85 ~ 1.15)', pass: ratioC >= 0.85 && ratioC <= 1.15 && ratioClfd >= 0.85 && ratioClfd <= 1.15 }
         ];
       } else {
         html = '<p>True β = ' + fmt(beta0, 2) + ', but FE averages <span class="key">' + fmt(feAtt) + '</span> and FD <span class="key">' + fmt(fdAtt) +
           '</span>: both are attenuated. With ρ<sub>x</sub> = ' + fmt(params().rhoX, 2) +
           ', the within transformation leaves little genuine signal in x* relative to the measurement noise.</p>' +
           '<p>FD also removes α<sub>i</sub>, but differencing turns v<sub>it</sub> into v<sub>it</sub> − v<sub>i,t−1</sub>, so ' +
-          (fdAtt < feAtt ? 'FD is more attenuated here' : 'FE is more attenuated here') + '. Bias and uncertainty are separate problems: the conventional FE SE averages ' +
-          fmt(s.seConv.mean) + ' against an actual spread of ' + fmt(mcSd) + ' (ratio ' + fmt(ratioC, 2) +
-          '), while the clustered SE averages ' + fmt(s.seCl.mean) + ' (ratio ' + fmt(ratioCl, 2) + ').</p>' +
+          (fdAtt < feAtt ? 'FD is more attenuated here' : 'FE is more attenuated here') + '. Bias and uncertainty are separate problems: the FE conventional SE averages ' +
+          fmt(s.seConv.mean) + ' against an actual spread of ' + fmt(mcFe) + ' (ratio ' + fmt(ratioC, 2) +
+          '), the FE clustered SE ' + fmt(s.seCl.mean) + ' (ratio ' + fmt(ratioCl, 2) + '); for FD the same ratios are ' +
+          fmt(ratioCfd, 2) + ' and ' + fmt(ratioClfd, 2) + ' (' + fmt(s.seConvFd.mean) + ' and ' + fmt(s.seClFd.mean) +
+          ' against a spread of ' + fmt(mcFd) + ').</p>' +
           '<p>Set β = 0 (preset) to read rejection rates as test size.</p>';
         checks = [
           { label: 'FE slope attenuated below ' + fmt(beta0, 2), pass: feAtt < beta0 },
           { label: 'FD slope attenuated below ' + fmt(beta0, 2), pass: fdAtt < beta0 },
           { label: 'At this ρ<sub>x</sub>, FD is more attenuated', pass: fdAtt < feAtt },
-          { label: 'Clustered SE close to the MC SD (0.9 ~ 1.1)', pass: ratioCl >= 0.9 && ratioCl <= 1.1 }
+          { label: 'Clustered SEs close to the MC SD (0.9 ~ 1.1)', pass: ratioCl >= 0.9 && ratioCl <= 1.1 && ratioClfd >= 0.9 && ratioClfd <= 1.1 }
         ];
       }
     }
@@ -543,8 +562,11 @@
     } else if (state.active === 'nickell') {
       header = ['rep', 'pooled_ols', 'fe_within']; keys = ['ols', 'fe'];
     } else {
-      header = ['rep', 'fe_within', 'fd', 'se_conventional', 'se_clustered', 'reject_conventional', 'reject_clustered'];
-      keys = ['fe', 'fd', 'seConv', 'seCl', 'rejectConv', 'rejectCl'];
+      header = ['rep', 'fe_within', 'fd',
+        'fe_se_conventional', 'fe_se_clustered', 'reject_fe_conventional', 'reject_fe_clustered',
+        'fd_se_conventional', 'fd_se_clustered', 'reject_fd_conventional', 'reject_fd_clustered'];
+      keys = ['fe', 'fd', 'seConv', 'seCl', 'rejectConv', 'rejectCl',
+        'seConvFd', 'seClFd', 'rejectConvFd', 'rejectClFd'];
     }
     var lines = [header.join(',')];
     var n = r.arrays[keys[0]].length;
