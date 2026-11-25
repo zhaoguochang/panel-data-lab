@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Panel Data Lab</title>
+  <meta name="description" content="500 Monte Carlo replications showing pooled OLS vs FE vs RE, FE vs FD attenuation, clustered standard errors, and Nickell bias." />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">Σ</div>
+        <div class="brand-text">
+          <div class="brand-title-row">
+            <h1>Panel Data Lab</h1>
+            <span class="brand-author">Guochang Zhao (RIEM/SWUFE)</span>
+          </div>
+        </div>
+      </div>
+      <div class="topbar-meta">
+        <span class="pill">500 replications</span>
+        <span class="pill">seed reproducible</span>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="sidebar">
+        <section class="card side-card">
+          <div class="section-label">01 / Pick a DGP</div>
+          <div id="experimentTabs" class="tabs"></div>
+          <div id="dgpFormula" class="formula"></div>
+        </section>
+
+        <section class="card side-card">
+          <div class="section-label">02 / Parameters</div>
+          <div id="fields" class="fields"></div>
+          <div id="presetRow" class="preset-row"></div>
+          <div class="run-row">
+            <button id="runBtn" class="btn btn-primary" type="button">Run simulation</button>
+            <button id="cancelBtn" class="btn btn-ghost" type="button" disabled>Stop</button>
+          </div>
+          <div class="progress-wrap">
+            <div id="progressBar" class="progress-bar"></div>
+          </div>
+          <div id="progressText" class="progress-text">Ready</div>
+        </section>
+      </aside>
+
+      <section class="content">
+        <section id="experimentIntro" class="intro-card"></section>
+
+        <section id="summaryCards" class="metric-grid"></section>
+
+        <section class="card result-card">
+          <div class="card-head">
+            <div>
+              <h2>Simulation results</h2>
+              <p id="resultSubtitle" class="card-sub"></p>
+            </div>
+            <button id="csvBtn" class="btn btn-small" type="button" disabled>Export replications CSV</button>
+          </div>
+          <div id="resultsTable" class="table-wrap empty-state">Results appear after the simulation runs.</div>
+        </section>
+
+        <div class="two-col">
+          <section class="card chart-card">
+            <div class="card-head">
+              <div>
+                <h2>Estimator distributions</h2>
+                <p class="card-sub">The dashed line marks the true parameter; 1% tails are folded into the edge bins</p>
+              </div>
+            </div>
+            <svg id="histogram" viewBox="0 0 760 300" role="img" aria-label="Histogram of estimator distributions"></svg>
+            <div id="chartLegend" class="legend"></div>
+          </section>
+
+          <section class="card">
+            <div class="card-head"><h2>Diagnosis &amp; interpretation</h2></div>
+            <div id="interpretation" class="interpretation empty-state">Interpretation appears after the simulation runs.</div>
+            <div id="checklist" class="checklist"></div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span>Panel Data Lab</span>
+    </footer>
+  </div>
+
+  <script src="simulation.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
