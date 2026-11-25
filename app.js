@@ -35,8 +35,8 @@
       no: '02',
       tab: 'FE vs FD',
       title: 'FE vs FD with measurement error — which survives attenuation?',
-      question: 'x* is highly persistent (ρ = 0.9). Predict first: which slope mean is closer to the true value of 1, FE or FD?',
-      formula: 'y<sub>it</sub> = x*<sub>it</sub> + α<sub>i</sub> + η<sub>it</sub><br>x<sub>it</sub> = x*<sub>it</sub> + v<sub>it</sub>; x* AR(1), ρ = 0.9',
+      question: 'Predict first: which slope mean is closer to the true value of 1, FE or FD?',
+      formula: 'y<sub>it</sub> = x*<sub>it</sub> + α<sub>i</sub> + η<sub>it</sub><br>x<sub>it</sub> = x*<sub>it</sub> + v<sub>it</sub><br>x*<sub>it</sub> = ρ x*<sub>i,t−1</sub> + ε<sub>it</sub>, ε ~ N(0,1)',
       defaults: { n: 200, T: 8, reps: 500, rhoX: 0.9, sigmaV: 1, sigmaEta: 1, seed: 42 },
       fields: [
         { key: 'n', label: 'Individuals n', min: 20, max: 1000, step: 10 },
