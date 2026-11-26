@@ -33,8 +33,8 @@
 
     fefd: {
       no: '02',
-      tab: 'FE vs FD + serial SEs',
-      title: 'FE vs FD — measurement error and serial correlation',
+      tab: 'FE vs FD + serial corr.',
+      title: 'FE vs FD under measurement error and serial correlation',
       question: 'Predict first: which slope mean is closer to the true β, FE or FD? Then: does the conventional FE standard error match the actual spread of β̂?',
       formula: 'y<sub>it</sub> = βx*<sub>it</sub> + α<sub>i</sub> + η<sub>it</sub><br>x<sub>it</sub> = x*<sub>it</sub> + v<sub>it</sub><br>x*<sub>it</sub> = ρ<sub>x</sub>x*<sub>i,t−1</sub> + ε<sub>it</sub><br>η<sub>it</sub> = ρ<sub>η</sub>η<sub>i,t−1</sub> + e<sub>it</sub>',
       defaults: { n: 200, T: 8, reps: 500, beta: 1, rhoX: 0.9, sigmaV: 1, rhoE: 0.8, sigmaE: 1, seed: 42 },
